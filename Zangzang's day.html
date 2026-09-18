@@ -601,6 +601,7 @@
         musicBus.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
       }
       if (musicOn && !mp3Started) {
+        ensureMp3();                     /* 进副页才开始拉这首 9.9MB 的伴奏 */
         var p = mp3.play();
         if (p && p.then) p.then(function () { mp3Started = true; }).catch(function () {});
       }
@@ -741,11 +742,25 @@
 
   /* ============================================================
      副页背景音乐：特别的人伴奏.mp3（切到副页才播放）
+     注意：这个文件有 9.9MB，是整站最大的一块。
+     以前写成 preload='auto'，会让打开首页时就偷偷开始下载它，
+     把首屏带宽全吃掉（弱网下首页要等十几秒）。
+     现在改成 preload='none' + 首次真正需要时才 load()，
+     首页只加载首屏要用的东西，等到切进副页才开始拉这首伴奏。
      ============================================================ */
-  var mp3 = new Audio('特别的人伴奏.mp3');
+  var mp3 = new Audio();
+  mp3.src = '特别的人伴奏.mp3';
   mp3.loop = true;
-  mp3.preload = 'auto';
+  mp3.preload = 'none';
   var mp3Started = false;
+  var mp3Loading = false;
+
+  /* 真正需要伴奏时才发起加载（幂等，重复调用无副作用） */
+  function ensureMp3() {
+    if (mp3Loading) return;
+    mp3Loading = true;
+    try { mp3.load(); } catch (e) {}
+  }
 
   /* ============================================================
      全局音乐开关（四个视图的 ♪ 控制同一全局音乐，状态同步）
@@ -763,6 +778,7 @@
     musicOn = !musicOn;
     if (currentView === 'collage') {
       if (musicOn) {
+        ensureMp3();
         if (!mp3Started) {
           var p = mp3.play();
           if (p && p.then) p.then(function () { mp3Started = true; }).catch(function () {});
@@ -1299,6 +1315,7 @@
   document.addEventListener('pointerdown', function firstGesture() {
     if (!musicStarted) startMusic();
     if (currentView === 'collage' && !mp3Started && musicOn) {
+      ensureMp3();
       var p = mp3.play();
       if (p && p.then) p.then(function () { mp3Started = true; }).catch(function () {});
     }
