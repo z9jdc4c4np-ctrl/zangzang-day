@@ -230,7 +230,7 @@
     width: min(100vw, calc(100vh * 2732 / 1537));
     height: min(100vh, calc(100vw * 1537 / 2732));
     margin: 0 auto;
-    background-image: url('录音页.jpg');
+    /* 底图不写在 CSS 里，改成切到本页时用 JS 按需加载（见 showView） */
     background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
@@ -553,7 +553,7 @@
 
   <!-- ================= 视图3：拍立得页 ================= -->
   <section class="view" id="view-polaroid">
-    <img class="bg" src="拍立得页.jpg" alt="拍立得页">
+    <img class="bg" data-src="拍立得页.jpg" alt="拍立得页">
     <div id="navLayer">
       <div id="navPolaroid" title="进入照片墙"></div>
     </div>
@@ -562,7 +562,7 @@
 
   <!-- ================= 视图4：拍立得副页 ================= -->
   <section class="view" id="view-collage">
-    <img class="bg" src="拍立得副页.jpg" alt="拍立得副页">
+    <img class="bg" data-src="拍立得副页.jpg" alt="拍立得副页">
     <div id="wall"></div>
     <!-- 右下角星星 → 首页 -->
     <div id="goHomeStar" title="返回首页"></div>
@@ -588,12 +588,31 @@
   var VIEWS = ['home', 'record', 'polaroid', 'collage'];
   var currentView = 'home';
 
+  /* 各视图的底图按需加载：
+     首页打开时只下载首页要用的东西，其它三页的底图等第一次切过去才拉，
+     这样首屏少下 2.3MB（弱网下差别很明显）。重复调用是安全的。 */
+  var bgLoaded = {};
+  function ensureViewBg(v) {
+    if (bgLoaded[v]) return;
+    bgLoaded[v] = true;
+    if (v === 'record') {
+      var st = document.getElementById('recordStage');
+      if (st) st.style.backgroundImage = "url('录音页.jpg')";
+      return;
+    }
+    var wrap = document.getElementById('view-' + v);
+    if (!wrap) return;
+    var img = wrap.querySelector('img.bg[data-src]');
+    if (img) img.src = img.getAttribute('data-src');
+  }
+
   function showView(v) {
     if (VIEWS.indexOf(v) === -1) return;
     currentView = v;
     VIEWS.forEach(function (k) {
       document.getElementById('view-' + k).classList.toggle('active', k === v);
     });
+    ensureViewBg(v);
     if (v === 'collage') {
       /* 副页：停摇篮曲，播 特别的人伴奏.mp3 */
       if (ctx) {
